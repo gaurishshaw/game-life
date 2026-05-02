@@ -43,12 +43,19 @@ with top_right:
     # Stat radar chart
     stats = ["STR", "CON", "INT", "PER"]
     values = [char["strength"], char["constitution"], char["intelligence"], char["perception"]]
+
+    def _hex_to_rgba(hex_color: str, alpha: float) -> str:
+        h = hex_color.lstrip("#")
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return f"rgba({r},{g},{b},{alpha})"
+
+    chart_color = cls_def.get("color", "#9b59b6")
     fig = go.Figure(go.Scatterpolar(
         r=values + [values[0]],
         theta=stats + [stats[0]],
         fill="toself",
-        line_color=cls_def.get("color", "#9b59b6"),
-        fillcolor=cls_def.get("color", "#9b59b6") + "33",
+        line_color=chart_color,
+        fillcolor=_hex_to_rgba(chart_color, 0.2),
     ))
     fig.update_layout(
         polar=dict(

@@ -101,17 +101,19 @@ def get_class_definition(class_name: str) -> dict:
 
 
 def apply_level_up_stats(username: str, class_name: str) -> None:
-    from db.queries import get_character, update_character
+    from db.queries import get_character, get_equipment, update_character
     from game.mechanics import calc_hp_max, calc_mp_max
+    from game.items import get_stat_bonuses_from_equipment
     cls = CLASS_DEFINITIONS[class_name]
     delta = cls["level_up_stats"]
     char = get_character(username)
+    equip_bonuses = get_stat_bonuses_from_equipment(get_equipment(username))
     new_str = char["strength"] + delta["strength"]
     new_con = char["constitution"] + delta["constitution"]
     new_int = char["intelligence"] + delta["intelligence"]
     new_per = char["perception"] + delta["perception"]
-    new_hp_max = calc_hp_max(char["level"], new_con + char.get("equip_constitution", 0), class_name)
-    new_mp_max = calc_mp_max(char["level"], new_int + char.get("equip_intelligence", 0), class_name)
+    new_hp_max = calc_hp_max(char["level"], new_con + equip_bonuses["constitution"], class_name)
+    new_mp_max = calc_mp_max(char["level"], new_int + equip_bonuses["intelligence"], class_name)
     update_character(username,
                      strength=new_str,
                      constitution=new_con,
