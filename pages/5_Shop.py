@@ -52,55 +52,98 @@ with tab_equip:
                     unequip_slot(username, slot)
                     st.rerun()
 
+            char_level = char["level"]
+
+            # Separate unlocked and locked items
+            unlocked = [i for i in items if i.get("min_level", 1) <= char_level]
+            locked   = [i for i in items if i.get("min_level", 1) >  char_level]
+
+            # ── Unlocked items ────────────────────────────────────────────────
             cols = st.columns(3)
-            for idx, item in enumerate(items):
+            for idx, item in enumerate(unlocked):
                 with cols[idx % 3]:
                     is_equipped = item["key"] == equipped_key
-                    is_owned = item["key"] in owned
-                    tier_color = TIER_COLORS.get(item["tier"], "#7f8c8d")
+                    is_owned    = item["key"] in owned
+                    tier_color  = TIER_COLORS.get(item["tier"], "#7f8c8d")
+                    eq_border   = f"border-color:{tier_color};" if is_equipped else ""
 
                     st.markdown(
                         f'<div style="background:#1a1a2e;border:1px solid {tier_color}44;'
-                        f'border-radius:8px;padding:14px;margin-bottom:10px;'
-                        f'{"border-color:" + tier_color + ";" if is_equipped else ""}'
-                        f'">'
+                        f'border-radius:8px;padding:14px;margin-bottom:10px;{eq_border}">'
                         f'<div style="font-size:24px;">{item["emoji"]}</div>'
                         f'<div style="font-weight:bold;color:#e8e8e8;">{item["name"]}</div>'
-                        f'<div style="font-size:11px;color:{tier_color};margin:3px 0;">Tier {item["tier"]}</div>'
-                        f'<div style="font-size:12px;color:#888;margin-bottom:8px;">{item["description"]}</div>'
+                        f'<div style="font-size:11px;color:{tier_color};margin:3px 0;">'
+                        f'Tier {item["tier"]}</div>'
+                        f'<div style="font-size:12px;color:#888;margin-bottom:8px;">'
+                        f'{item["description"]}</div>'
                         f'<div style="font-size:13px;">'
-                        f'{"⚔️ +" + str(item["strength"]) if item["strength"] else ""} '
-                        f'{"🛡️ +" + str(item["constitution"]) if item["constitution"] else ""} '
-                        f'{"🔮 +" + str(item["intelligence"]) if item["intelligence"] else ""} '
+                        f'{"⚔️ +" + str(item["strength"]) + " " if item["strength"] else ""}'
+                        f'{"🛡️ +" + str(item["constitution"]) + " " if item["constitution"] else ""}'
+                        f'{"🔮 +" + str(item["intelligence"]) + " " if item["intelligence"] else ""}'
                         f'{"👁️ +" + str(item["perception"]) if item["perception"] else ""}'
-                        f'</div>'
-                        f'</div>',
+                        f'</div></div>',
                         unsafe_allow_html=True
                     )
 
                     if is_equipped:
                         st.success("Equipped ✓", icon=None)
                     elif is_owned:
-                        if st.button("Equip", key=f"equip_{item['key']}", use_container_width=True):
+                        if st.button("Equip", key=f"equip_{item['key']}",
+                                     use_container_width=True):
                             res = equip_item(username, item["key"])
-                            if res["success"]:
-                                st.success(res["message"])
-                            else:
-                                st.error(res["message"])
+                            st.success(res["message"]) if res["success"] else st.error(res["message"])
                             st.rerun()
                     else:
                         can_afford = char["gold"] >= item["gold_cost"]
-                        label = f"Buy — {item['gold_cost']}g"
-                        if st.button(label, key=f"buy_{item['key']}",
+                        if st.button(f"Buy — {item['gold_cost']}g", key=f"buy_{item['key']}",
                                      use_container_width=True, disabled=not can_afford):
                             res = buy_equipment(username, item["key"])
-                            if res["success"]:
-                                st.success(res["message"])
-                            else:
-                                st.error(res["message"])
+                            st.success(res["message"]) if res["success"] else st.error(res["message"])
                             st.rerun()
                         if not can_afford:
                             st.caption(f"Need {item['gold_cost'] - char['gold']:.1f} more gold")
+
+            # ── Locked items ──────────────────────────────────────────────────
+            if locked:
+                # Group by min_level so we can show one header per unlock gate
+                from itertools import groupby
+                locked_sorted = sorted(locked, key=lambda i: i.get("min_level", 1))
+                for gate_level, group in groupby(locked_sorted,
+                                                 key=lambda i: i.get("min_level", 1)):
+                    group_items = list(group)
+                    st.markdown(
+                        f'<div style="border-top:1px solid #c9a22722;margin:18px 0 10px 0;'
+                        f'padding-top:10px;">'
+                        f'<span style="font-family:\'Cinzel\',serif;font-size:11px;'
+                        f'color:#555;letter-spacing:0.1em;">🔒 SEALED UNTIL LEVEL {gate_level}'
+                        f'</span></div>',
+                        unsafe_allow_html=True
+                    )
+                    locked_cols = st.columns(3)
+                    for idx, item in enumerate(group_items):
+                        tier_color = TIER_COLORS.get(item["tier"], "#7f8c8d")
+                        with locked_cols[idx % 3]:
+                            st.markdown(
+                                f'<div style="background:#0c0c0f;border:1px solid #2a2a2a;'
+                                f'border-radius:8px;padding:14px;margin-bottom:10px;opacity:0.55;">'
+                                f'<div style="font-size:24px;filter:grayscale(1);">'
+                                f'{item["emoji"]}</div>'
+                                f'<div style="font-weight:bold;color:#444;margin-top:2px;">'
+                                f'{item["name"]}</div>'
+                                f'<div style="font-size:11px;color:{tier_color}88;margin:3px 0;">'
+                                f'Tier {item["tier"]} &nbsp;·&nbsp; {item["gold_cost"]}g</div>'
+                                f'<div style="font-size:12px;color:#333;margin:6px 0 4px 0;">'
+                                f'⚔️ ? &nbsp; 🛡️ ? &nbsp; 🔮 ? &nbsp; 👁️ ?</div>'
+                                f'</div>',
+                                unsafe_allow_html=True
+                            )
+                            st.markdown(
+                                f'<div style="text-align:center;padding-bottom:8px;">'
+                                f'<span style="color:#444;font-size:11px;font-family:'
+                                f'\'Courier New\',monospace;">🔒 Lv.{gate_level} Required</span>'
+                                f'</div>',
+                                unsafe_allow_html=True
+                            )
 
 # ─── CUSTOM REWARDS TAB ───────────────────────────────────────────────────────
 with tab_rewards:

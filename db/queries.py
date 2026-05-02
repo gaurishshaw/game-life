@@ -525,9 +525,13 @@ def buy_equipment(username: str, item_key: str) -> dict:
 
     conn = get_connection()
     char = _row_to_dict(conn.execute(
-        "SELECT gold FROM characters WHERE username=?", (username,)
+        "SELECT gold, level FROM characters WHERE username=?", (username,)
     ).fetchone())
     conn.close()
+
+    min_level = item.get("min_level", 1)
+    if char["level"] < min_level:
+        return {"success": False, "message": f"Requires Level {min_level}"}
 
     if char["gold"] < item["gold_cost"]:
         return {"success": False, "message": f"Need {item['gold_cost']} gold"}
